@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial Step-by-Step: Triple Exponential Smoothing (Holt-Winters)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #1a4d2e;
+            --secondary: #4f772d;
+            --accent: #90a955;
+            --light: #ecf39e;
+            --bg: #faf9f6;
+            --text: #2d2d2d;
+            --card-bg: #ffffff;
+            --shadow: rgba(26, 77, 46, 0.1);
+        }
+        body {
+            font-family: 'Crimson Pro', serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #f5f3ed 100%);
+            color: var(--text);
+            line-height: 1.8;
+            overflow-x: hidden;
+        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
+
+        /* HEADER */
+        header {
+            text-align: center;
+            padding: 64px 20px 56px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        header::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: url('data:image/svg+xml,<svg width="80" height="80" xmlns="http://www.w3.org/2000/svg"><line x1="0" y1="0" x2="80" y2="80" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/><line x1="80" y1="0" x2="0" y2="80" stroke="rgba(255,255,255,0.06)" stroke-width="1.5"/></svg>');
+        }
+        header h1 { font-size: 2.8rem; font-weight: 700; position: relative; z-index: 1; margin-bottom: 12px; }
+        .subtitle { font-size: 1.2rem; opacity: 0.92; position: relative; z-index: 1; }
+
+        /* STEP */
+        .step-container {
+            margin-bottom: 44px;
+            opacity: 0;
+            transform: translateY(24px);
+            animation: fadeUp 0.5s ease forwards;
+        }
+        @keyframes fadeUp { to { opacity:1; transform:translateY(0); } }
+        .step-container:nth-child(1){animation-delay:.05s}
+        .step-container:nth-child(2){animation-delay:.12s}
+        .step-container:nth-child(3){animation-delay:.19s}
+        .step-container:nth-child(4){animation-delay:.26s}
+        .step-container:nth-child(5){animation-delay:.33s}
+        .step-container:nth-child(6){animation-delay:.40s}
+        .step-container:nth-child(7){animation-delay:.47s}
+        .step-container:nth-child(8){animation-delay:.54s}
+        .step-container:nth-child(9){animation-delay:.61s}
+
+        .step-header { display:flex; align-items:center; gap:18px; margin-bottom:18px; }
+        .step-number {
+            width:62px; height:62px; flex-shrink:0;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color:#fff; border-radius:50%;
+            display:flex; align-items:center; justify-content:center;
+            font-size:1.7rem; font-weight:700;
+            box-shadow: 0 4px 14px var(--shadow);
+        }
+        .step-title { font-size:1.75rem; font-weight:700; color:var(--primary); }
+
+        /* CARD */
+        .card {
+            background:#fff; border-radius:14px; padding:32px;
+            box-shadow: 0 6px 24px var(--shadow);
+            border: 1px solid rgba(26,77,46,.07);
+        }
+
+        /* FORMULA BOX */
+        .formula-box {
+            background: linear-gradient(135deg,#f4f6f0,#e8ede0);
+            border-left: 5px solid var(--accent);
+            padding: 20px 24px;
+            margin: 22px 0;
+            border-radius: 8px;
+            position: relative; overflow:hidden;
+        }
+        .formula-box::after {
+            content:'∑'; position:absolute; right:18px; top:50%;
+            transform:translateY(-50%); font-size:4.5rem;
+            opacity:.06; color:var(--primary); pointer-events:none;
+        }
+        .formula-title { font-weight:600; color:var(--secondary); margin-bottom:10px; font-family:'Crimson Pro',serif; font-size:1.1rem; }
+        .formula-box .eq { font-family:'JetBrains Mono',monospace; font-size:1.05rem; line-height:1.7; }
+
+        /* CALCULATION */
+        .calc {
+            background:#fff; border:2px dashed var(--accent);
+            border-radius:10px; padding:20px 24px; margin:18px 0;
+        }
+        .calc-row { margin:6px 0; font-family:'JetBrains Mono',monospace; font-size:.97rem; }
+        .calc-row .label { color:var(--secondary); font-weight:600; font-family:'Crimson Pro',serif; font-size:1rem; }
+        .calc-row .ans { color:var(--primary); font-weight:700; }
+
+        /* RESULT BOX */
+        .result-box {
+            background: linear-gradient(135deg, var(--accent), var(--secondary));
+            color:#fff; padding:22px; border-radius:12px;
+            margin-top:22px; text-align:center;
+            box-shadow: 0 5px 18px rgba(79,119,45,.28);
+        }
+        .result-label { font-size:1rem; opacity:.93; margin-bottom:6px; }
+        .result-value { font-size:2.2rem; font-weight:700; font-family:'JetBrains Mono',monospace; }
+
+        /* INFO / NOTE BOX */
+        .info-box {
+            background: linear-gradient(135deg,#fff8e1,#fff3cd);
+            border-left:5px solid #f39c12;
+            padding:18px 22px; margin:18px 0; border-radius:8px;
+            font-size:.97rem;
+        }
+        .info-box strong { color:#e67e22; }
+
+        /* TABLE */
+        table { width:100%; border-collapse:collapse; margin:18px 0; border-radius:8px; overflow:hidden; box-shadow:0 3px 12px var(--shadow); }
+        th { background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:13px 15px; text-align:center; font-weight:600; font-size:.95rem; }
+        td { padding:11px 15px; border-bottom:1px solid #eee; text-align:center; font-size:.96rem; }
+        tr:last-child td { border-bottom:none; }
+        tr:hover { background:#f7faf4; }
+        .highlight-row { background:#eef5e6 !important; font-weight:600; }
+
+        /* GRID 3 col */
+        .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:20px 0; }
+        .grid-item {
+            background:#fff; padding:18px; border-radius:10px;
+            border:2px solid var(--light); text-align:center;
+            transition:all .25s ease;
+        }
+        .grid-item:hover { border-color:var(--accent); transform:translateY(-3px); box-shadow:0 4px 14px var(--shadow); }
+        .grid-item h4 { color:var(--secondary); margin-bottom:6px; font-size:1.05rem; }
+        .grid-item .val { font-family:'JetBrains Mono',monospace; font-size:1.15rem; color:var(--primary); font-weight:700; margin-top:8px; }
+
+        /* FINAL */
+        .final-banner {
+            background:linear-gradient(135deg,var(--primary),var(--secondary));
+            padding:48px 32px; border-radius:16px; color:#fff;
+            margin-top:52px; text-align:center;
+            box-shadow:0 10px 36px rgba(26,77,46,.3);
+        }
+        .final-banner h2 { font-size:2.2rem; margin-bottom:8px; }
+        .final-banner p { opacity:.9; font-size:1.05rem; margin-bottom:24px; }
+        .final-banner table { color:var(--text); background:#fff; border-radius:10px; overflow:hidden; }
+        .final-banner th { background:var(--primary); }
+        .final-banner td { text-align:center; }
+        .final-banner .ans { color:var(--secondary); font-weight:700; font-size:1.1rem; }
+
+        /* FOOTER */
+        footer { text-align:center; padding:36px 20px; color:#6c757d; margin-top:52px; border-top:2px solid #e9ecef; }
+
+        @media(max-width:680px){
+            header h1{font-size:1.9rem}
+            .step-title{font-size:1.35rem}
+            .step-number{width:48px;height:48px;font-size:1.3rem}
+            .card{padding:20px}
+            .grid3{grid-template-columns:1fr}
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>📊 Tutorial Step-by-Step</h1>
+    <p class="subtitle">Triple Exponential Smoothing — Holt-Winters Additive &nbsp;|&nbsp; Perbaikan Meteran 2025</p>
+</header>
+
+<div class="container">
+
+<!-- ====== INTRO ====== -->
+<div class="info-box" style="margin-bottom:32px;">
+    <strong>🎯 Apa yang akan kita pelajari?</strong><br>
+    Tutorial ini menjelaskan <em>setiap langkah</em> untuk mendapatkan nilai <strong>Yt, Lt, Tt, St, dan Ft</strong> untuk <strong>Bulan 1 (Januari 2025)</strong>, menggunakan data perbaikan meteran yang nyata dari periode Januari – Desember 2025.<br><br>
+    Semua angka di tutorial ini diambil langsung dari hasil perhitungan Excel (Holt-Winters Lengkap).
+</div>
+
+<!-- ====== STEP 0 : Persiapan Data ====== -->
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">0</div>
+        <h2 class="step-title">Persiapan — Konversi Durasi ke Jam</h2>
+    </div>
+    <div class="card">
+        <p>Data mentah berisi durasi dalam format <strong>H:MM:SS</strong>. Sebelum digunakan, kita konversi ke <strong>satuan jam desimal</strong>.</p>
+
+        <div class="formula-box">
+            <div class="formula-title">Rumus Konversi</div>
+            <div class="eq">Jam Desimal = Jam + (Menit ÷ 60) + (Detik ÷ 3600)</div>
+        </div>
+
+        <p><strong>Contoh:</strong> Durasi <code>0:28:10</code></p>
+        <div class="calc">
+            <div class="calc-row">= 0 + (28 ÷ 60) + (10 ÷ 3600)</div>
+            <div class="calc-row">= 0 + 0.4667 + 0.00278</div>
+            <div class="calc-row">= <span class="ans">0.4694 jam</span></div>
+        </div>
+
+        <p style="margin-top:20px;"><strong>Semua data Bulan 1 (Januari 2025):</strong></p>
+        <table>
+            <thead><tr><th>No</th><th>Tanggal</th><th>Durasi (H:MM:SS)</th><th>Durasi (Jam)</th></tr></thead>
+            <tbody>
+                <tr><td>1</td><td>1 Jan 2025</td><td>0:06:17</td><td>0.1047</td></tr>
+                <tr><td>2</td><td>1 Jan 2025</td><td>0:28:10</td><td>0.4694</td></tr>
+                <tr><td>3</td><td>10 Jan 2025</td><td>0:30:34</td><td>0.5094</td></tr>
+                <tr><td>4</td><td>17 Jan 2025</td><td>0:08:25</td><td>0.1403</td></tr>
+                <tr><td>5</td><td>20 Jan 2025</td><td>0:23:17</td><td>0.3881</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ====== STEP 1 : Data Aktual (Yt) ====== -->
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">1</div>
+        <h2 class="step-title">Hitung Data Aktual Bulan 1 — Y₁</h2>
+    </div>
+    <div class="card">
+        <p><strong>Data Aktual (Yt)</strong> adalah <strong>rata-rata durasi pekerjaan</strong> dalam satu bulan. Ini adalah nilai dasar yang akan kita gunakan untuk semua perhitungan berikutnya.</p>
+
+        <div class="formula-box">
+            <div class="formula-title">Rumus</div>
+            <div class="eq">Y₁ = Total Durasi Bulan 1  ÷  Jumlah Pekerjaan Bulan 1</div>
+        </div>
+
+        <div class="calc">
+            <div class="calc-row"><span class="label">Langkah 1 — Jumlahkan semua durasi:</span></div>
+            <div class="calc-row">= 0.1047 + 0.4694 + 0.5094 + 0.1403 + 0.3881</div>
+            <div class="calc-row">= <span class="ans">1.6119 jam</span></div>
+            <br>
+            <div class="calc-row"><span class="label">Langkah 2 — Bagi dengan jumlah data (5):</span></div>
+            <div class="calc-row">Y₁ = 1.6119 ÷ 5</div>
+            <div class="calc-row">Y₁ = <span class="ans">0.3224 jam</span></div>
+        </div>
+
+        <div class="result-box">
+            <div class="result-label">Data Aktual Bulan 1 (Y₁)</div>
+            <div class="result-value">0.3224</div>
+        </div>
+    </div>
+</div>
+
+<!-- ====== STEP 2 : Rata-rata Semua Bulan ====== -->
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">2</div>
+        <h2 class="step-title">Hitung Rata-rata Semua Bulan</h2>
+    </div>
+    <div class="card">
+        <p>Untuk menghitung <strong>Level (L₀)</strong> dan <strong>Trend (T₀)</strong>, kita butuh rata-rata durasi dari <em>semua</em> bulan dulu. Berikut hasilnya dari data lengkap Januari – Desember 2025:</p>
+
+        <table>
+            <thead><tr><th>Bulan</th><th>Nama</th><th>Jumlah Data</th><th>Total Durasi (Jam)</th><th>Rata-rata (Jam)</th></tr></thead>
+            <tbody>
+                <tr class="highlight-row"><td>1</td><td>Januari</td><td>5</td><td>1.6119</td><td><strong>0.3224</strong></td></tr>
+                <tr><td>2</td><td>Februari</td><td>9</td><td>3.2358</td><td>0.3595</td></tr>
+                <tr><td>3</td><td>Maret</td><td>14</td><td>5.6986</td><td>0.4070</td></tr>
+                <tr><td>4</td><td>April</td><td>8</td><td>2.4022</td><td>0.3003</td></tr>
+                <tr><td>5</td><td>Mei</td><td>7</td><td>1.9114</td><td>0.2731</td></tr>
+                <tr><td>6</td><td>Juni</td><td>5</td><td>1.9839</td><td>0.3968</td></tr>
+                <tr style="background:#fef3f3;"><td>7</td><td>Juli</td><td>0</td><td>0</td><td style="color:#c0392b;font-weight:700;">— (kosong)</td></tr>
+                <tr><td>8</td><td>Agustus</td><td>11</td><td>4.0503</td><td>0.3682</td></tr>
+                <tr><td>9</td><td>September</td><td>5</td><td>1.4906</td><td>0.2981</td></tr>
+                <tr><td>10</td><td>Oktober</td><td>8</td><td>2.8517</td><td>0.3565</td></tr>
+                <tr><td>11</td><td>November</td><td>2</td><td>0.9450</td><td>0.4725</td></tr>
+                <tr><td>12</td><td>Desember</td><td>7</td><td>3.7894</td><td>0.5413</td></tr>
+            </tbody>
+        </table>
+
+        <div class="info-box">
+            <strong>📌 Catatan:</strong> Bulan Juli tidak ada data perbaikan. Pada perhitungan Holt-Winters, komponen Level, Trend, dan Seasonal untuk Juli akan <strong>mempertahankan nilai dari bulan sebelumnya</strong>.
+        </div>
+    </div>
+</div>
+
+<!-- ====== STEP 3 : Level Awal (L₀) ====== -->
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">3</div>
+        <h2 class="step-title">Hitung Level Awal — L₀</h2>
+    </div>
+    <div class="card">
+        <p><strong>Level (Lt)</strong> adalah <strong>baseline</strong> data — nilai "tengah" setelah trend dan seasonal dipisahkan. Untuk inisialisasi, L₀ dihitung sebagai rata-rata dari bulan-bulan awal yang memiliki data.</p>
+
+        <div class="formula-box">
+            <div class="formula-title">Rumus Inisialisasi L₀</div>
+            <div class="eq">L₀ = AVERAGE(Rata-rata Bulan 1 hingga Bulan 6)</div>
+            <div class="eq" style="font-size:.88rem;opacity:.75;">// Menggunakan 6 bulan pertama yang punya data</div>
+        </div>
+
+        <div class="calc">
+            <div class="calc-row">L₀ = (0.3224 + 0.3595 + 0.4070 + 0.3003 + 0.2731 + 0.3968) ÷ 6</div>
+            <div class="calc-row">L₀ = 2.0591 ÷ 6</div>
+            <div class="calc-row">L₀ = <span class="ans">0.3432</span></div>
+        </div>
+
+        <div class="result-box">
+            <div class="result-label">Level Awal (L₀)</div>
+            <div class="result-value">0.3432</div>
+        </div>
+    </div>
+</div>
+
+<!-- ====== STEP 4 : Trend Awal (T₀) ====== -->
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">4</div>
+        <h2 class="step-title">Hitung Trend Awal — T₀</h2>
+    </div>
+    <div class="card">
+        <p><strong>Trend (Tt)</strong> mengukur <strong>arah perubahan</strong> data dari waktu ke waktu — naik atau turun.</p>
+
+        <div class="formula-box">
+            <div class="formula-title">Rumus Inisialisasi T₀</div>
+            <div class="eq">T₀ = (Rata-rata Bulan Akhir − Rata-rata Bulan Awal) ÷ Jumlah Periode</div>
+        </div>
+
+        <p>Kita bandingkan rata-rata 4 bulan pertama vs 4 bulan terakhir yang punya data (Bulan 8–12, lewati Juli):</p>
+
+        <div class="grid3">
+            <div class="grid-item">
+                <h4>Rata-rata Bulan 1–4</h4>
+                <p style="font-size:.88rem;color:#666;">(Avg awal)</p>
+                <div class="val">0.3471</div>
+            </div>
+            <div class="grid-item">
+                <h4>Rata-rata Bulan 9–12</h4>
+                <p style="font-size:.88rem;color:#666;">(Avg akhir)</p>
+                <div class="val">0.4171</div>
+            </div>
+            <div class="grid-item">
+                <h4>Periode</h4>
+                <p style="font-size:.88rem;color:#666;">(Bulan 1→9 = 8)</p>
+                <div class="val">8</div>
+            </div>
+        </div>
+
+        <div class="calc">
+            <div class="calc-row">T₀ = (0.4171 − 0.3471) ÷ 8</div>
+            <div class="calc-row">T₀ = 0.0700 ÷ 8</div>
+            <div class="calc-row">T₀ = <span class="ans">0.00872</span></div>
+        </div>
+
+        <div class="info-box">
+            <strong>📈 Interpretasi:</strong> Nilai T₀ <strong>positif</strong> berarti secara keseluruhan, rata-rata durasi perbaikan cenderung <strong>meningkat</strong> sepanjang tahun 2025.
+        </div>
+
+        <div class="result-box">
+            <div class="result-label">Trend Awal (T₀)</div>
+            <div class="result-value">+0.00872</div>
+        </div>
+    </div>
+</div>
+
+<!-- ====== STEP 5 : Seasonal Awal (S₀) ====== -->
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">5</div>
+        <h2 class="step-title">Hitung Seasonal Awal — S₀</h2>
+    </div>
+    <div class="card">
+        <p><strong>Seasonal (St)</strong> menangkap <strong>pola musiman</strong> — seberapa tinggi atau rendah data di bulan tertentu dibandingkan baseline-nya.</p>
+
+        <div class="formula-box">
+            <div class="formula-title">Rumus Inisialisasi S₀</div>
+            <div class="eq">S₀ = Y₁ − (L₀ + T₀)</div>
+        </div>
+
+        <p>Kita sudah tahu semua nilainya:</p>
+        <div class="grid3">
+            <div class="grid-item">
+                <h4>Y₁</h4>
+                <p style="font-size:.88rem;color:#666;">Data Aktual Bulan 1</p>
+                <div class="val">0.3224</div>
+            </div>
+            <div class="grid-item">
+                <h4>L₀</h4>
+                <p style="font-size:.88rem;color:#666;">Level Awal</p>
+                <div class="val">0.3432</div>
+            </div>
+            <div class="grid-item">
+                <h4>T₀</h4>
+                <p style="font-size:.88rem;color:#666;">Trend Awal</p>
+                <div class="val">0.00872</div>
+            </div>
+        </div>
+
+        <div class="calc">
+            <div class="calc-row"><span class="label">Langkah 1 — Hitung baseline (L₀ + T₀):</span></div>
+            <div class="calc-row">= 0.3432 + 0.00872</div>
+            <div class="calc-row">= <span class="ans">0.3519</span></div>
+            <br>
+            <div class="calc-row"><span class="label">Langkah 2 — Kurangi dari Y₁:</span></div>
+            <div class="calc-row">S₀ = 0.3224 − 0.3519</div>
+            <div class="calc-row">S₀ = <span class="ans">−0.0295</span></div>
+        </div>
+
+        <div class="info-box">
+            <strong>📉 Interpretasi:</strong> S₀ <strong>negatif</strong> berarti di Bulan 1 (Januari), durasi perbaikan <strong>lebih rendah</strong> dari baseline rata-rata — Januari relatif "cepat" dibanding bulan-bulan lainnya.
+        </div>
+
+        <div class="result-box">
+            <div class="result-label">Seasonal Awal (S₀)</div>
+            <div class="result-value">−0.0295</div>
+        </div>
+    </div>
+</div>
+
+<!-- ====== STEP 6 : Forecast (F₁) ====== -->
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">6</div>
+        <h2 class="step-title">Hitung Forecast Bulan 1 — F₁</h2>
+    </div>
+    <div class="card">
+        <p><strong>Forecast (Ft)</strong> adalah <strong>prediksi nilai</strong> untuk periode tertentu. Pada Bulan 1, forecast dihitung dari komponen inisialisasi yang sudah kita hitung.</p>
+
+        <div class="formula-box">
+            <div class="formula-title">Rumus Forecast (Holt-Winters Additive)</div>
+            <div class="eq">F₁ = L₀ + T₀ + S₀</div>
+        </div>
+
+        <div class="calc">
+            <div class="calc-row">F₁ = 0.3432 + 0.00872 + (−0.0295)</div>
+            <div class="calc-row">F₁ = 0.3432 + 0.00872 − 0.0295</div>
+            <div class="calc-row">F₁ = <span class="ans">0.3224</span></div>
+        </div>
+
+        <div class="info-box">
+            <strong>✅ Logis!</strong> Pada Bulan 1 (inisialisasi), Forecast sama dengan Data Aktual. Ini normal — model belum "belajar" dari data sebelumnya, sehingga prediksi langsung menggunakan komponen awal yang <em>sudah mencakup</em> nilai Y₁ itu sendiri.
+        </div>
+
+        <div class="result-box">
+            <div class="result-label">Forecast Bulan 1 (F₁)</div>
+            <div class="result-value">0.3224</div>
+        </div>
+    </div>
+</div>
+
+<!-- ====== STEP 7 : Ringkasan Bulan 1 ====== -->
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">✅</div>
+        <h2 class="step-title">Ringkasan — Hasil Bulan 1 (Inisialisasi)</h2>
+    </div>
+    <div class="card">
+        <table>
+            <thead><tr><th>Komponen</th><th>Simbol</th><th>Rumus</th><th>Hasil</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Data Aktual</strong></td><td>Y₁</td><td>Rata-rata durasi Januari</td><td><strong style="color:var(--secondary);">0.3224</strong></td></tr>
+                <tr><td><strong>Level</strong></td><td>L₀</td><td>AVERAGE(Bulan 1–6)</td><td><strong style="color:var(--secondary);">0.3432</strong></td></tr>
+                <tr><td><strong>Trend</strong></td><td>T₀</td><td>(Avg akhir − Avg awal) ÷ periode</td><td><strong style="color:var(--secondary);">+0.00872</strong></td></tr>
+                <tr><td><strong>Seasonal</strong></td><td>S₀</td><td>Y₁ − (L₀ + T₀)</td><td><strong style="color:var(--secondary);">−0.0295</strong></td></tr>
+                <tr class="highlight-row"><td><strong>Forecast</strong></td><td>F₁</td><td>L₀ + T₀ + S₀</td><td><strong style="color:var(--primary);font-size:1.15rem;">0.3224</strong></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ====== STEP 8 : Rumus Iterasi Bulan 2–12 ====== -->
+<div class="step-container">
+    <div class="step-header">
+        <div class="step-number">🔄</div>
+        <h2 class="step-title">Rumus Iterasi — Bulan 2 hingga 12</h2>
+    </div>
+    <div class="card">
+        <p>Setelah Bulan 1, setiap bulan berikutnya dihitung dengan <strong>rumus iteratif</strong> yang menggunakan <em>hasil bulan sebelumnya</em>. Parameter yang digunakan:</p>
+
+        <div class="grid3">
+            <div class="grid-item">
+                <h4>α (Alpha)</h4>
+                <p style="font-size:.85rem;color:#666;">Bobot Level</p>
+                <div class="val">0.3</div>
+            </div>
+            <div class="grid-item">
+                <h4>β (Beta)</h4>
+                <p style="font-size:.85rem;color:#666;">Bobot Trend</p>
+                <div class="val">0.7</div>
+            </div>
+            <div class="grid-item">
+                <h4>γ (Gamma)</h4>
+                <p style="font-size:.85rem;color:#666;">Bobot Seasonal</p>
+                <div class="val">0.1</div>
+            </div>
+        </div>
+
+        <div class="formula-box">
+            <div class="formula-title">Level (Lt) — baseline terbaru</div>
+            <div class="eq">Lt = α × (Yt − St₋₁) + (1 − α) × (Lt₋₁ + Tt₋₁)</div>
+        </div>
+        <div class="formula-box">
+            <div class="formula-title">Trend (Tt) — kecepatan perubahan</div>
+            <div class="eq">Tt = β × (Lt − Lt₋₁) + (1 − β) × Tt₋₁</div>
+        </div>
+        <div class="formula-box">
+            <div class="formula-title">Seasonal (St) — pola musiman</div>
+            <div class="eq">St = γ × (Yt − Lt) + (1 − γ) × St₋₁</div>
+        </div>
+        <div class="formula-box">
+            <div class="formula-title">Forecast (Ft) — prediksi</div>
+            <div class="eq">Ft = Lt₋₁ + Tt₋₁ + St₋₁</div>
+        </div>
+
+        <div class="info-box">
+            <strong>💡 Cara baca rumus:</strong><br>
+            • Subscript <strong>t</strong> = bulan sekarang &nbsp;|&nbsp; <strong>t−1</strong> = bulan sebelumnya<br>
+            • α, β, γ mengontrol seberapa besar pengaruh <em>data baru</em> vs <em>tren lama</em>. Nilai mendekati 1 = lebih responsif terhadap data terbaru.
+        </div>
+    </div>
+</div>
+
+<!-- ====== FINAL : Hasil Lengkap Bulan 1–12 ====== -->
+<div class="final-banner">
+    <h2>📈 Hasil Lengkap — Bulan 1 hingga 12</h2>
+    <p>Semua nilai di bawah ini diperoleh dari perhitungan Excel (Holt-Winters Lengkap).</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Bulan</th><th>Nama</th><th>Yt</th><th>Lt</th><th>Tt</th><th>St</th><th>Ft</th><th>APE (%)</th><th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="highlight-row"><td>1</td><td>Januari</td><td>0.3224</td><td>0.3432</td><td>+0.0087</td><td>−0.0295</td><td>0.3224</td><td>—</td><td>Inisialisasi</td></tr>
+            <tr><td>2</td><td>Februari</td><td>0.3595</td><td>0.3630</td><td>+0.0165</td><td>−0.0269</td><td>0.3224</td><td>10.33</td><td>Training</td></tr>
+            <tr><td>3</td><td>Maret</td><td>0.4070</td><td>0.3959</td><td>+0.0279</td><td>−0.0231</td><td>0.3527</td><td>13.36</td><td>Training</td></tr>
+            <tr><td>4</td><td>April</td><td>0.3003</td><td>0.3937</td><td>+0.0069</td><td>−0.0301</td><td>0.4007</td><td>33.45</td><td>Training</td></tr>
+            <tr><td>5</td><td>Mei</td><td>0.2731</td><td>0.3713</td><td>−0.0136</td><td>−0.0370</td><td>0.3704</td><td>35.65</td><td>Training</td></tr>
+            <tr><td>6</td><td>Juni</td><td>0.3968</td><td>0.3805</td><td>+0.0024</td><td>−0.0316</td><td>0.3208</td><td>19.15</td><td>Training</td></tr>
+            <tr style="background:#fef3f3;"><td>7</td><td>Juli</td><td>—</td><td>0.3805</td><td>+0.0024</td><td>−0.0316</td><td>0.3513</td><td>—</td><td>Kosong</td></tr>
+            <tr><td>8</td><td>Agustus</td><td>0.3682</td><td>0.3880</td><td>+0.0059</td><td>−0.0305</td><td>0.3513</td><td>4.60</td><td>Training</td></tr>
+            <tr><td>9</td><td>September</td><td>0.2981</td><td>0.3743</td><td>−0.0078</td><td>−0.0350</td><td>0.3635</td><td>21.92</td><td>Training</td></tr>
+            <tr><td>10</td><td>Oktober</td><td>0.3565</td><td>0.3740</td><td>−0.0026</td><td>−0.0333</td><td>0.3315</td><td>7.01</td><td>Training</td></tr>
+            <tr><td>11</td><td>November</td><td>0.4725</td><td>0.4117</td><td>+0.0257</td><td>−0.0239</td><td>0.3382</td><td>28.43</td><td>Testing</td></tr>
+            <tr><td>12</td><td>Desember</td><td>0.5413</td><td>0.4757</td><td>+0.0525</td><td>−0.0149</td><td>0.4135</td><td>23.61</td><td>Testing</td></tr>
+        </tbody>
+    </table>
+
+    <p style="margin-top:28px;font-size:1.25rem;">MAPE = <strong>19.75 %</strong></p>
+</div>
+
+<footer>
+    <p><strong>Tutorial Triple Exponential Smoothing (Holt-Winters Additive)</strong></p>
+    <p>Analisis Durasi Perbaikan Meteran — Januari hingga Desember 2025</p>
+    <p style="margin-top:8px;opacity:.7;">Nilai-nilai dihitung dari file Excel: <em>Tutorial Holt Winters Perbaikan Meteran UPDATED</em></p>
+</footer>
+
+</div><!-- /container -->
+</body>
+</html>
